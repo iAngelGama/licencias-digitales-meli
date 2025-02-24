@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Licencia Digital - Seguridad Vial</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary: #2d3277;
+            --secondary: #ffd900;
+            --accent: #e63946;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .license-card {
+            width: 100%;
+            max-width: 400px;
+            background: linear-gradient(145deg, var(--secondary) 0%, #ffdf33 100%);
+            color: var(--primary);
+            text-align: center;
+            border-radius: 25px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .license-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .license-header {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        .logo {
+            width: 130px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+        }
+
+        .profile-pic {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            margin: 20px auto;
+            border: 4px solid white;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            position: relative;
+            background: white;
+        }
+
+        .profile-pic img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .name {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 15px 0;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 12px;
+            margin: 10px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s ease;
+        }
+
+        .info-container:hover {
+            transform: scale(1.02);
+        }
+
+        .info-label {
+            color: var(--accent);
+            font-weight: 600;
+            display: inline-block;
+            min-width: 80px;
+        }
+
+        #qrcode {
+            margin: 20px auto;
+            background: white;
+            padding: 12px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
+            color: var(--primary);
+            font-size: 18px;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .error-message {
+            color: var(--accent);
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .watermark {
+            position: absolute;
+            opacity: 0.1;
+            font-size: 80px;
+            font-weight: 900;
+            transform: rotate(-45deg);
+            user-select: none;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="license-card">
+        <div class="license-header">
+            <div class="watermark">ML</div>
+            <img src="https://www.logo.wine/a/logo/MercadoLibre/MercadoLibre-Logo.wine.svg" 
+                 alt="Mercado Libre" 
+                 class="logo">
+        </div>
+
+        <div class="profile-pic">
+            <img id="foto" src="" alt="Foto del conductor">
+        </div>
+
+        <div class="name" id="nombre">
+            <span class="loading">Cargando información...</span>
+        </div>
+
+        <div class="info-container">
+            <span class="info-label">Licencia:</span>
+            <span id="licencia">-</span><br>
+            <span class="info-label">Tipo:</span>
+            <span id="tipo">-</span>
+        </div>
+
+        <div class="info-container">
+            <span class="info-label">Expedición:</span>
+            <span id="expedicion">-</span><br>
+            <span class="info-label">Vencimiento:</span>
+            <span id="vencimiento">-</span>
+        </div>
+
+        <div class="info-container">
+            <span class="info-label">CURP:</span>
+            <span id="curp">-</span><br>
+            <span class="info-label">Estación:</span>
+            <span id="estacion">-</span>
+        </div>
+
+        <div id="qrcode"></div>
+    </div>
+
+    <script>
+        // Configuración
+        const API_URL = "TU_URL_DE_APPS_SCRIPT";
+        const DEFAULT_PHOTO = 'https://via.placeholder.com/250';
+
+        // Elementos DOM
+        const elements = {
+            nombre: document.getElementById('nombre'),
+            foto: document.getElementById('foto'),
+            licencia: document.getElementById('licencia'),
+            tipo: document.getElementById('tipo'),
+            expedicion: document.getElementById('expedicion'),
+            vencimiento: document.getElementById('vencimiento'),
+            curp: document.getElementById('curp'),
+            estacion: document.getElementById('estacion'),
+            qrcode: document.getElementById('qrcode')
+        };
+
+        // Cargar datos
+        async function cargarDatos() {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('id');
+
+            if (!id) return mostrarError('ID de licencia no proporcionado');
+
+            try {
+                const response = await fetch(`${API_URL}?id=${id}`);
+                if (!response.ok) throw new Error('Error en la respuesta');
+                
+                const data = await response.json();
+                actualizarUI(data);
+                generarQR(window.location.href);
+
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarError('No se pudo cargar la licencia');
+            }
+        }
+
+        // Actualizar interfaz
+        function actualizarUI(data) {
+            elements.nombre.innerHTML = data.Nombre;
+            elements.foto.src = data.FotoURL || DEFAULT_PHOTO;
+            elements.licencia.textContent = data.Licencia;
+            elements.tipo.textContent = data.Tipo;
+            elements.expedicion.textContent = formatearFecha(data.Expedicion);
+            elements.vencimiento.textContent = formatearFecha(data.Vencimiento);
+            elements.curp.textContent = data.CURP;
+            elements.estacion.textContent = data.Estacion;
+        }
+
+        // Formatear fechas
+        function formatearFecha(fecha) {
+            return new Date(fecha).toLocaleDateString('es-MX', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
+            });
+        }
+
+        // Generar QR
+        function generarQR(texto) {
+            new QRCode(elements.qrcode, {
+                text: texto,
+                width: 120,
+                height: 120,
+                colorDark: var(--primary),
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        // Manejo de errores
+        function mostrarError(mensaje) {
+            elements.nombre.innerHTML = `<div class="error-message">${mensaje}</div>`;
+            elements.qrcode.style.display = 'none';
+        }
+
+        // Iniciar
+        document.addEventListener('DOMContentLoaded', cargarDatos);
+    </script>
+</body>
+</html>
